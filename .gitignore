@@ -1,0 +1,8 @@
+/bin
+/out
+/.vs
+/android-project/.idea
+/android-project/.gradle
+/android-project/app/build
+/android-project/app/.cxx
+/android-project/local.properties

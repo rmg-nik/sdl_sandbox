@@ -1,0 +1,62 @@
+apply plugin: 'com.android.application'
+
+buildscript {
+    repositories {
+        maven { url 'https://plugins.gradle.org/m2/'}
+    }
+}
+
+android {
+    compileSdkVersion 31
+    defaultConfig {
+        applicationId "com.sdl.sandbox_sample"
+        minSdkVersion 16
+        targetSdkVersion 31
+        versionCode 1
+        versionName "1.0"
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_APP_PLATFORM=android-16", "-DANDROID_STL=c++_static"
+                abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+                targets "sandbox_sample"
+            }
+        }
+    }
+    sourceSets {
+        main {
+            java.srcDirs = ['src/main/java', '../../external/SDL/android-project/app/src/main/java']
+            assets.srcDirs = ['../../assets']
+            res.srcDirs = ['../../external/SDL/android-project/app/src/main/res']
+            manifest.srcFile 'src/main/AndroidManifest.xml'
+        }
+    }    
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path '../../CMakeLists.txt'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    compileOptions {
+       sourceCompatibility JavaVersion.VERSION_1_8
+       targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    configurations {
+        all*.exclude group: 'com.android.support', module: 'customtabs'
+    }
+    
+    lintOptions {
+        abortOnError false
+    }
+}
