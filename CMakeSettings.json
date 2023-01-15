@@ -10,6 +10,20 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": ""
+    },
+    {
+      "name": "WSL-Clang-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\bin\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeExecutable": "cmake",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_clang_x64" ],
+      "wslPath": "${defaultWSLPath}",
+      "variables": []
     }
   ]
 }
