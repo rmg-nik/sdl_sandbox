@@ -128,15 +128,18 @@ SoundPtr load_sound(const std::string& path)
 	return std::move(ret);
 }
 
-TexturePtr get_label_texture(const std::string& text, const std::string& font_path, int fontsize, const SDL_Color& color)
+std::pair<TexturePtr, SDL_FRect> get_label_texture(const std::string& text, const std::string& font_path, int fontsize, const SDL_Color& color)
 {
 	TexturePtr ret;
+	SDL_FRect size;
 	if (!text.empty())
 	{
 		if (auto ttf_font = TTF_OpenFont(font_path.c_str(), fontsize))
 		{
 			if (auto sfc = TTF_RenderText_Blended(ttf_font, text.c_str(), color))
 			{
+				size.w = sfc->w;
+				size.h = sfc->h;
 				if (auto txt = SDL_CreateTextureFromSurface(render.get(), sfc))
 					ret = TexturePtr(txt, SDL_DestroyTexture);
 				else
@@ -153,7 +156,7 @@ TexturePtr get_label_texture(const std::string& text, const std::string& font_pa
 	else
 		SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "get_label_texture: text shouldn't be empty");
 
-	return std::move(ret);
+	return {std::move(ret), size};
 }
 
 void play_sound(const SoundPtr& sound)
@@ -217,16 +220,33 @@ int main(int argc, char* argv[])
 	sound_hit = load_sound("assets/sound_effect.ogg");
 	assert(sound_hit);
 	
-	bool working = true;
-	SDL_FRect dst = { 0.f, 0.f, 100, 100 };
-	SDL_FPoint direction = { (rand() % 100) / 100.f, (rand() % 100) / 100.f };
-	float speed = 500.f;
+	struct SpriteData
+	{
+		SDL_FRect dst { 0.f, 0.f, 100, 100 };
+		SDL_FPoint direction { (rand() % 100 + 50) / 100.f, (rand() % 100 + 50) / 100.f };
+		float speed {500.f};
+	};
+	std::vector<SpriteData> sprite_data;
+	constexpr std::size_t kCount = 500;
+	sprite_data.resize(kCount);
+
 	float accum = 0.f;
 	constexpr float fixed_time_step = 0.01f;
 	auto last_tick = SDL_GetTicks();
+	auto fps_tick = last_tick;
+	int frames_counter = 0;
 	auto render_data = get_render_data(render);
 	setup_render(render, render_data);
-	int hits_count = 0;
+
+	auto get_fps_label = [](int fps) {
+		auto fps_lbl_info = get_label_texture("FPS: " + std::to_string(fps), "assets/OpenSans-Bold.ttf", 28, {255, 0, 0, 255});
+		fps_lbl_info.second.x = 0.f;
+		fps_lbl_info.second.y = 200.f;
+		return fps_lbl_info;
+	};
+	auto fps_lbl = get_fps_label(0);
+
+	bool working = true;
 	while (working)
 	{
 		SDL_Event evt;
@@ -246,24 +266,28 @@ int main(int argc, char* argv[])
 		while (accum >= fixed_time_step)
 		{
 			accum -= fixed_time_step;
-			dst.x += direction.x * speed * fixed_time_step;
-			if (dst.x + dst.w > render_data.design_w || dst.x < 0)
+			for (auto& sprite: sprite_data)
 			{
-				++hits_count;
-				play_sound(sound_hit);
-				direction.x *= -1;
-				speed += 1.f;
-				dst.x = SDL_clamp(dst.x, 0, render_data.design_w - dst.w);
-			}
+				auto& dst = sprite.dst;
+				auto& speed = sprite.speed;
+				auto& direction = sprite.direction;
+				dst.x += direction.x * speed * fixed_time_step;
+				if (dst.x + dst.w > render_data.design_w || dst.x < 0)
+				{
+					play_sound(sound_hit);
+					direction.x *= -1;
+					speed += 1.f;
+					dst.x = SDL_clamp(dst.x, 0, render_data.design_w - dst.w);
+				}
 
-			dst.y += direction.y * speed * fixed_time_step;
-			if (dst.y + dst.h > render_data.design_h || dst.y < 0)
-			{
-				++hits_count;
-				play_sound(sound_hit);
-				direction.y *= -1;
-				speed += 1.f;
-				dst.y = SDL_clamp(dst.y, 0, render_data.design_h - dst.h);
+				dst.y += direction.y * speed * fixed_time_step;
+				if (dst.y + dst.h > render_data.design_h || dst.y < 0)
+				{
+					play_sound(sound_hit);
+					direction.y *= -1;
+					speed += 1.f;
+					dst.y = SDL_clamp(dst.y, 0, render_data.design_h - dst.h);
+				}
 			}
 		}
 
@@ -272,9 +296,22 @@ int main(int argc, char* argv[])
 		SDL_FRect bg{ 0.f, 0.f, (float)render_data.design_w, (float)render_data.design_h };
 		bg = translate_destination(bg, render_data);
 		SDL_RenderFillRect(render.get(), &bg);
-		SDL_FRect tdst = translate_destination(dst, render_data);
-		SDL_RenderTexture(render.get(), texture_awesome.get(), nullptr, &tdst);
+		for (auto& sprite: sprite_data)
+		{
+			SDL_FRect tdst = translate_destination(sprite.dst, render_data);
+			SDL_RenderTexture(render.get(), texture_awesome.get(), nullptr, &tdst);
+		}
+		SDL_RenderTexture(render.get(), fps_lbl.first.get(), nullptr, &fps_lbl.second);
+
+		if (curr_tick - fps_tick >= 1000)
+		{
+			fps_lbl = get_fps_label(frames_counter);
+			frames_counter = 0;
+			fps_tick = curr_tick;
+		}
+
 		SDL_RenderPresent(render.get());
+		++frames_counter;
 	}
 
 	sound_hit.reset();

@@ -4,6 +4,8 @@ project(sdl-sandbox VERSION 1.0.0)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
+set (CMAKE_CXX_STANDARD 17)
+
 if(NOT MSVC AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug")
 endif()
