@@ -1,8 +1,12 @@
 /bin
+/build
 /out
 /.vs
+/.vscode
+/.cache
 /android-project/.idea
 /android-project/.gradle
 /android-project/app/build
 /android-project/app/.cxx
 /android-project/local.properties
+/compile_commands.json

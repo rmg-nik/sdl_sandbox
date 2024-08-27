@@ -3,11 +3,11 @@
 #include <string>
 #include <cassert>
 
-#include <SDL.h>
-#include <SDL_main.h>
-#include <SDL_image.h>
-#include <SDL_mixer.h>
-#include <SDL_ttf.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
+#include <SDL3_image/SDL_image.h>
+#include <SDL3_mixer/SDL_mixer.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
 using WindowPtr = std::unique_ptr<SDL_Window, std::function<void(SDL_Window*)>>;
 using RenderPtr = std::unique_ptr<SDL_Renderer, std::function<void(SDL_Renderer*)>>;
@@ -36,7 +36,7 @@ struct RenderData
 SDL_Point get_window_size(bool fullscreen)
 {
 	SDL_Rect window_bounds;
-	if (SDL_GetDisplayBounds(0, &window_bounds) < 0)
+	if (SDL_GetDisplayBounds(SDL_GetPrimaryDisplay(), &window_bounds) < 0)
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_GetDisplayBounds error: %s", SDL_GetError());
 		exit(-1);
@@ -57,7 +57,7 @@ RenderData get_render_data(const RenderPtr& renderer)
 	constexpr int DESIGN_W = 1920;
 	constexpr int DESIGN_H = 1080;
 	RenderData ret;
-	SDL_GetRendererOutputSize(renderer.get(), &ret.output_w, &ret.output_h);
+	SDL_GetCurrentRenderOutputSize(renderer.get(), &ret.output_w, &ret.output_h);
 	ret.design_w = DESIGN_W;
 	ret.design_h = DESIGN_H;
 	ret.scale_x = (float)ret.output_w / (float)ret.design_w;
@@ -78,19 +78,19 @@ void setup_render(const RenderPtr& renderer, const RenderData& data)
 		int(data.design_h * data.scale_y)
 	};
 
-	SDL_RenderSetScale(renderer.get(), 1.0f, 1.0f);
-	SDL_RenderSetClipRect(renderer.get(), &viewport);
-	SDL_RenderSetScale(renderer.get(), data.scale_x, data.scale_y);
+	SDL_SetRenderScale(renderer.get(), 1.0f, 1.0f);
+	SDL_SetRenderClipRect(renderer.get(), &viewport);
+	SDL_SetRenderScale(renderer.get(), data.scale_x, data.scale_y);
 }
 
 void clear_screen(const RenderPtr& renderer, const SDL_Color& color)
 {
 	SDL_Rect cliprect;
-	SDL_RenderGetClipRect(renderer.get(), &cliprect);
-	SDL_RenderSetClipRect(renderer.get(), nullptr);
+	SDL_GetRenderClipRect(renderer.get(), &cliprect);
+	SDL_GetRenderClipRect(renderer.get(), nullptr);
 	SDL_SetRenderDrawColor(renderer.get(), color.r, color.g, color.b, color.a);
 	SDL_RenderClear(renderer.get());
-	SDL_RenderSetClipRect(renderer.get(), &cliprect);
+	SDL_SetRenderClipRect(renderer.get(), &cliprect);
 }
 
 TexturePtr load_texture(const RenderPtr& render, const std::string& path)
@@ -103,7 +103,7 @@ TexturePtr load_texture(const RenderPtr& render, const std::string& path)
 	}
 
 	auto txt = SDL_CreateTextureFromSurface(render.get(), sfc);
-	SDL_FreeSurface(sfc);
+	SDL_DestroySurface(sfc);
 
 	if (!txt)
 	{
@@ -141,7 +141,7 @@ TexturePtr get_label_texture(const std::string& text, const std::string& font_pa
 					ret = TexturePtr(txt, SDL_DestroyTexture);
 				else
 					SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Could not create texture from surface: %s", SDL_GetError());
-				SDL_FreeSurface(sfc);
+				SDL_DestroySurface(sfc);
 			}
 			else
 				SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Could not render text '%s': %s", text.c_str(), SDL_GetError());
@@ -180,7 +180,7 @@ int main(int argc, char* argv[])
 	Mix_Init(MIX_INIT_OGG);
 	TTF_Init();
 
-	if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 512) < 0)
+	if (Mix_OpenAudio(0, NULL) < 0)
 	{
 		SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Could not open audio: %s", SDL_GetError());
 	}
@@ -188,8 +188,6 @@ int main(int argc, char* argv[])
 	{
 		Mix_AllocateChannels(MAX_CHANNELS);
 	}
-
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
 	bool fullscreen = false;
 #ifdef ANDROID
@@ -199,15 +197,18 @@ int main(int argc, char* argv[])
 
 	window = WindowPtr(SDL_CreateWindow(
 		"Sandbox", 
-		SDL_WINDOWPOS_CENTERED, 
-		SDL_WINDOWPOS_CENTERED, 
 		window_size.x,
 		window_size.y,
-		SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0)
+		SDL_WINDOW_OPENGL | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0)
 	), SDL_DestroyWindow);
 	assert(window);
 	
-	render = RenderPtr(SDL_CreateRenderer(window.get(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC), SDL_DestroyRenderer);
+	SDL_PropertiesID props = SDL_CreateProperties();
+  SDL_SetPointerProperty(props, SDL_PROP_RENDERER_CREATE_WINDOW_POINTER, window.get());
+  SDL_SetStringProperty(props, SDL_PROP_RENDERER_CREATE_NAME_STRING, nullptr);
+  SDL_SetNumberProperty(props, SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, 1);
+
+	render = RenderPtr(SDL_CreateRendererWithProperties(props), SDL_DestroyRenderer);
 	assert(render);
 
 	texture_awesome = load_texture(render, "assets/awesomeface.png");
@@ -233,7 +234,7 @@ int main(int argc, char* argv[])
 		{
 			switch (evt.type)
 			{
-			case SDL_QUIT: 
+			case SDL_EVENT_QUIT: 
 				working = false;
 				break;
 			}
@@ -270,9 +271,9 @@ int main(int argc, char* argv[])
 		SDL_SetRenderDrawColor(render.get(), 25, 25, 25, 255);
 		SDL_FRect bg{ 0.f, 0.f, (float)render_data.design_w, (float)render_data.design_h };
 		bg = translate_destination(bg, render_data);
-		SDL_RenderFillRectF(render.get(), &bg);
+		SDL_RenderFillRect(render.get(), &bg);
 		SDL_FRect tdst = translate_destination(dst, render_data);
-		SDL_RenderCopyF(render.get(), texture_awesome.get(), nullptr, &tdst);
+		SDL_RenderTexture(render.get(), texture_awesome.get(), nullptr, &tdst);
 		SDL_RenderPresent(render.get());
 	}
 

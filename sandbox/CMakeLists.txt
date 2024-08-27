@@ -6,9 +6,8 @@ target_sources(${PROJECT_NAME} PRIVATE main.cpp)
 
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
-		SDL2::SDL2-static
-		SDL2::SDL2main
-		SDL2_image::SDL2_image-static
-		SDL2_mixer::SDL2_mixer-static
-		SDL2_ttf::SDL2_ttf-static
+		SDL3::SDL3-static
+		SDL3_image::SDL3_image-static
+		SDL3_mixer::SDL3_mixer-static
+		SDL3_ttf::SDL3_ttf-static
 )
