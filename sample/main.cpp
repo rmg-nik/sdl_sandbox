@@ -2,6 +2,7 @@
 #include <functional>
 #include <string>
 #include <cassert>
+#include <vector>
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -36,7 +37,7 @@ struct RenderData
 SDL_Point get_window_size(bool fullscreen)
 {
 	SDL_Rect window_bounds;
-	if (SDL_GetDisplayBounds(SDL_GetPrimaryDisplay(), &window_bounds) < 0)
+	if (SDL_GetDisplayBounds(SDL_GetPrimaryDisplay(), &window_bounds) != true)
 	{
 		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_GetDisplayBounds error: %s", SDL_GetError());
 		exit(-1);
@@ -183,7 +184,7 @@ int main(int argc, char* argv[])
 	Mix_Init(MIX_INIT_OGG);
 	TTF_Init();
 
-	if (Mix_OpenAudio(0, NULL) < 0)
+	if (Mix_OpenAudio(0, NULL) != true)
 	{
 		SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Could not open audio: %s", SDL_GetError());
 	}
@@ -199,13 +200,13 @@ int main(int argc, char* argv[])
 	auto window_size = get_window_size(fullscreen);
 
 	window = WindowPtr(SDL_CreateWindow(
-		"Sandbox", 
+		"Sandbox",
 		window_size.x,
 		window_size.y,
 		SDL_WINDOW_OPENGL | (fullscreen ? SDL_WINDOW_FULLSCREEN : 0)
 	), SDL_DestroyWindow);
 	assert(window);
-	
+
 	SDL_PropertiesID props = SDL_CreateProperties();
   SDL_SetPointerProperty(props, SDL_PROP_RENDERER_CREATE_WINDOW_POINTER, window.get());
   SDL_SetStringProperty(props, SDL_PROP_RENDERER_CREATE_NAME_STRING, nullptr);
@@ -219,7 +220,7 @@ int main(int argc, char* argv[])
 
 	sound_hit = load_sound("assets/sound_effect.ogg");
 	assert(sound_hit);
-	
+
 	struct SpriteData
 	{
 		SDL_FRect dst { 0.f, 0.f, 100, 100 };
@@ -254,7 +255,7 @@ int main(int argc, char* argv[])
 		{
 			switch (evt.type)
 			{
-			case SDL_EVENT_QUIT: 
+			case SDL_EVENT_QUIT:
 				working = false;
 				break;
 			}
